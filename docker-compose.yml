@@ -23,9 +23,16 @@ services:
       - DB_USER=postgres
       - DB_PASS=postgres
       - DB_NAME=byoc_data
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
       - postgres
       - ollama
+      - redis
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
 
   hr-agent:
     build:

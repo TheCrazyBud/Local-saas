@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Sidebar from "../components/Sidebar";
 
 export const metadata: Metadata = {
   title: "BYOC Control Plane",
@@ -28,23 +29,7 @@ export default function RootLayout({
         </header>
         
         <div className="dashboard-layout">
-          <aside className="sidebar">
-            <div className="nav-item active">
-              <span>⊞</span> Dashboard
-            </div>
-            <div className="nav-item">
-              <span>🚀</span> Deployments
-            </div>
-            <div className="nav-item">
-              <span>🛡️</span> Privacy Gateway
-            </div>
-            <div className="nav-item">
-              <span>🤖</span> Agents
-            </div>
-            <div className="nav-item">
-              <span>⚙️</span> Settings
-            </div>
-          </aside>
+          <Sidebar />
           
           <main className="main-content">
             {children}

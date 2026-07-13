@@ -1,14 +1,11 @@
-"use client";
+import DeployButton from '../components/DeployButton';
+import prisma from '../lib/prisma';
 
-import { useState } from 'react';
-
-export default function Home() {
-  const [isDeploying, setIsDeploying] = useState(false);
-
-  const handleDeploy = () => {
-    setIsDeploying(true);
-    setTimeout(() => setIsDeploying(false), 2000);
-  };
+export default async function Home() {
+  const auditLogs = await prisma.auditLog.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: 10
+  });
 
   return (
     <div>
@@ -17,9 +14,7 @@ export default function Home() {
           <h1>Global Deployments</h1>
           <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Manage your localized Bring-Your-Own-Cloud infrastructure.</p>
         </div>
-        <button className="btn" onClick={handleDeploy}>
-          {isDeploying ? 'Deploying...' : 'Deploy New Data Plane'}
-        </button>
+        <DeployButton />
       </div>
 
       <div className="grid-cards">
@@ -66,29 +61,23 @@ export default function Home() {
             <tr style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid var(--glass-border)' }}>
               <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: '500' }}>Timestamp</th>
               <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: '500' }}>Event</th>
-              <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: '500' }}>VPC / Location</th>
+              <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: '500' }}>Location / Source</th>
               <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: '500' }}>Status</th>
             </tr>
           </thead>
           <tbody>
-            <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
-              <td style={{ padding: '1rem' }}>2026-07-08 14:32:11</td>
-              <td style={{ padding: '1rem' }}>Data Plane Config Updated via Pull</td>
-              <td style={{ padding: '1rem' }}>vpc-eu-12345</td>
-              <td style={{ padding: '1rem', color: 'var(--success-color)' }}>Success</td>
-            </tr>
-            <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
-              <td style={{ padding: '1rem' }}>2026-07-08 13:10:05</td>
-              <td style={{ padding: '1rem' }}>PII Interception - Aadhaar Tokenized</td>
-              <td style={{ padding: '1rem' }}>vpc-us-98765</td>
-              <td style={{ padding: '1rem', color: 'var(--success-color)' }}>Masked</td>
-            </tr>
-            <tr>
-              <td style={{ padding: '1rem' }}>2026-07-08 11:45:22</td>
-              <td style={{ padding: '1rem' }}>SGLang Cache Flushed</td>
-              <td style={{ padding: '1rem' }}>vpc-us-98765</td>
-              <td style={{ padding: '1rem', color: 'var(--success-color)' }}>Success</td>
-            </tr>
+            {auditLogs.length === 0 ? (
+              <tr><td colSpan={4} style={{ padding: '1rem', textAlign: 'center' }}>No audit logs found.</td></tr>
+            ) : (
+              auditLogs.map(log => (
+                <tr key={log.id} style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                  <td style={{ padding: '1rem' }}>{log.createdAt.toLocaleString()}</td>
+                  <td style={{ padding: '1rem' }}>{log.event}</td>
+                  <td style={{ padding: '1rem' }}>{log.location}</td>
+                  <td style={{ padding: '1rem', color: log.status === 'Success' ? 'var(--success-color)' : (log.status === 'Warning' ? 'orange' : 'var(--danger-color)') }}>{log.status}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
