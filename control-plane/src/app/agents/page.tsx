@@ -2,9 +2,16 @@ import prisma from "../../lib/prisma";
 import { revalidatePath } from "next/cache";
 
 export default async function Agents() {
-  const agents = await prisma.agent.findMany({
-    orderBy: { createdAt: 'desc' }
-  });
+  let agents = [];
+  try {
+    agents = await prisma.agent.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+  } catch (error) {
+    agents = [
+      { id: '1', name: 'HR Onboarding Agent (Mock DB Offline)', description: 'Automates internal workflows.', status: 'Operational' }
+    ];
+  }
 
   async function createAgent() {
     "use server";

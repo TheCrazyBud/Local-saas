@@ -2,9 +2,16 @@ import prisma from "../../lib/prisma";
 import { revalidatePath } from "next/cache";
 
 export default async function Approvals() {
-  const approvals = await prisma.actionApproval.findMany({
-    orderBy: { createdAt: 'desc' }
-  });
+  let approvals = [];
+  try {
+    approvals = await prisma.actionApproval.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+  } catch (error) {
+    approvals = [
+      { id: '1', actionType: 'Database Offline (Mock)', agentName: 'System', payload: 'Start Docker Postgres to see real approvals.', status: 'PENDING' }
+    ];
+  }
 
   async function updateStatus(id: string, newStatus: string) {
     "use server";

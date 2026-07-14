@@ -2,10 +2,17 @@ import DeployButton from '../components/DeployButton';
 import prisma from '../lib/prisma';
 
 export default async function Home() {
-  const auditLogs = await prisma.auditLog.findMany({
-    orderBy: { createdAt: 'desc' },
-    take: 10
-  });
+  let auditLogs = [];
+  try {
+    auditLogs = await prisma.auditLog.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 10
+    });
+  } catch (error) {
+    auditLogs = [
+      { id: '1', createdAt: new Date(), event: "Database Offline (Please start Docker Postgres)", location: "Local System", status: "Warning" }
+    ];
+  }
 
   return (
     <div>
