@@ -7,36 +7,253 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Deployment {
+// ─── Organization & Identity ───────────────────────────────
+
+model Organization {
   id        String   @id @default(uuid())
   name      String
-  region    String
-  status    String   @default("Operational")
-  vpcId     String
+  slug      String   @unique
+  plan      String   @default("free") // free, pro, enterprise
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members     OrgMembership[]
+  teams       Team[]
+  models      Model[]
+  agents      Agent[]
+  deployments Deployment[]
+  approvals   ActionApproval[]
+  auditLogs   AuditLog[]
+  settings    OrgSettings?
 }
 
-model Agent {
-  id          String   @id @default(uuid())
-  name        String
-  description String
-  status      String   @default("Operational")
-  createdAt   DateTime @default(now())
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  avatarUrl    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  orgMemberships  OrgMembership[]
+  teamMemberships TeamMembership[]
 }
+
+model OrgMembership {
+  id     String @id @default(uuid())
+  role   String @default("member") // owner, admin, member
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  orgId  String
+  org    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  joinedAt DateTime @default(now())
+
+  @@unique([userId, orgId])
+}
+
+model Team {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  orgId   String
+  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  members TeamMembership[]
+}
+
+model TeamMembership {
+  id   String @id @default(uuid())
+  role String @default("member") // lead, member
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+}
+
+model OrgSettings {
+  id               String @id @default(uuid())
+  ollamaEndpoint   String @default("http://localhost:11434")
+  gatewayEndpoint  String @default("http://localhost:8000")
+  apiKey           String @default("enterprise-secret-key-123")
+  defaultTemp      Float  @default(0.7)
+  defaultMaxTokens Int    @default(2048)
+
+  orgId String       @unique
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+}
+
+// ─── Model Registry ────────────────────────────────────────
+
+model Model {
+  id             String       @id @default(uuid())
+  name           String
+  provider       String       @default("ollama")   // ollama, vllm, custom
+  parameterCount String?                            // "7B", "70B", etc.
+  quantization   String?                            // "Q4_K_M", "FP16", etc.
+  status         String       @default("available") // available, loaded, pulling, error
+  endpoint       String       @default("http://localhost:11434")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  orgId       String
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  agents      Agent[]
+  deployments Deployment[]
+  runs        AgentRun[]
+
+  @@unique([name, orgId])
+}
+
+// ─── Agent (expanded) ──────────────────────────────────────
+
+model Agent {
+  id            String   @id @default(uuid())
+  name          String
+  description   String
+  systemPrompt  String   @default("You are a helpful assistant.")
+  temperature   Float    @default(0.7)
+  maxTokens     Int      @default(2048)
+  status        String   @default("idle")  // idle, running, error
+  totalRuns     Int      @default(0)
+  successRate   Float    @default(100.0)
+  lastActiveAt  DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  orgId         String
+  org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  modelId       String?
+  model         Model?   @relation(fields: [modelId], references: [id])
+
+  runs          AgentRun[]
+  conversations Conversation[]
+  agentTools    AgentTool[]
+}
+
+// ─── Agent Execution Trace ─────────────────────────────────
+
+model AgentRun {
+  id          String   @id @default(uuid())
+  input       String
+  output      String
+  tokensUsed  Int      @default(0)
+  latencyMs   Int      @default(0)
+  status      String   @default("success") // success, error, timeout
+  createdAt   DateTime @default(now())
+
+  agentId     String
+  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  modelId     String?
+  model       Model?   @relation(fields: [modelId], references: [id])
+}
+
+// ─── Conversations & Messages ──────────────────────────────
+
+model Conversation {
+  id        String    @id @default(uuid())
+  title     String    @default("New Chat")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  agentId   String
+  agent     Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  messages  Message[]
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  role      String   // system, user, assistant
+  content   String
+  tokens    Int      @default(0)
+  createdAt DateTime @default(now())
+
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+// ─── Tool Registry ─────────────────────────────────────────
+
+model Tool {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String
+  endpoint    String?
+  schema      String?  // JSON schema for tool parameters
+  riskLevel   String   @default("low") // low, medium, high
+  createdAt   DateTime @default(now())
+
+  agentTools  AgentTool[]
+}
+
+model AgentTool {
+  id      String @id @default(uuid())
+
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  toolId  String
+  tool    Tool   @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, toolId])
+}
+
+// ─── Deployment (expanded) ─────────────────────────────────
+
+model Deployment {
+  id           String   @id @default(uuid())
+  name         String
+  region       String
+  status       String   @default("running")  // running, stopped, error
+  vpcId        String
+  gpuUsage     Float    @default(0)
+  ramUsage     Float    @default(0)
+  cpuUsage     Float    @default(0)
+  requestsServed Int    @default(0)
+  uptime       Int      @default(0)           // seconds
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  orgId        String
+  org          Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  modelId      String?
+  model        Model?   @relation(fields: [modelId], references: [id])
+}
+
+// ─── HITL & Governance ─────────────────────────────────────
 
 model ActionApproval {
   id          String   @id @default(uuid())
   agentName   String
   actionType  String
-  payload     String   
-  status      String   @default("PENDING") 
+  payload     String
+  status      String   @default("PENDING")
   createdAt   DateTime @default(now())
+
+  orgId       String
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
 }
 
 model AuditLog {
   id        String   @id @default(uuid())
   event     String
   location  String
-  status    String   
+  status    String
   createdAt DateTime @default(now())
+
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
 }

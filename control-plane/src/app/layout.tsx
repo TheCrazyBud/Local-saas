@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Sidebar from "../components/Sidebar";
+import Link from "next/link";
+import OrgSwitcher from "../components/OrgSwitcher";
 
 export const metadata: Metadata = {
   title: "BYOC Control Plane",
@@ -16,21 +17,34 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <header className="glass-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--accent-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-              AI
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <div style={{ 
+              width: '32px', height: '24px', 
+              background: 'rgba(255,255,255,0.1)', 
+              borderRadius: '6px', 
+              border: '1px solid var(--glass-border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+              <div style={{ width: '12px', height: '12px', background: 'var(--surface-light)', borderRadius: '3px', marginLeft: '4px' }}></div>
             </div>
-            <h2 style={{ margin: 0, fontSize: '1.25rem', letterSpacing: '1px' }}>SOVEREIGN CLOUD</h2>
+            
+            <nav className="top-nav">
+              <Link href="/" className="nav-item active">Dashboard</Link>
+              <Link href="/deployments" className="nav-item">Deployments</Link>
+              <Link href="/privacy-gateway" className="nav-item">Privacy Gateway</Link>
+              <Link href="/models" className="nav-item">Models</Link>
+              <Link href="/agents" className="nav-item">Agents</Link>
+              <Link href="/approvals" className="nav-item">Approvals</Link>
+              <Link href="/settings" className="nav-item">Settings</Link>
+            </nav>
           </div>
-          <div>
-            <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginRight: '1rem' }}>Admin: Enterprise-Corp</span>
-            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'inline-block', verticalAlign: 'middle' }}></div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <OrgSwitcher />
           </div>
         </header>
         
         <div className="dashboard-layout">
-          <Sidebar />
-          
           <main className="main-content">
             {children}
           </main>
